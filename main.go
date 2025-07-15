@@ -34,15 +34,11 @@ func onReady() {
 	shouldPoll := true
 
 	systray.SetIcon(icon.Data)
-	systray.SetTitle("Awesome App")
-	systray.SetTooltip("Pretty awesome超级棒")
-	mNotify := systray.AddMenuItem("Send Notification", "Send a notification")
-	mQuit := systray.AddMenuItem("Quit", "Quit the whole app")
+	systray.SetTitle("GH Notify")
+	systray.SetTooltip("Get github notifications on desktop")
 	mNotifications := systray.AddMenuItem("Notifications", "View notifications")
 	mTogglePolling := systray.AddMenuItemCheckbox("Toggle Polling", "Toggle notification polling", true)
-
-	// Sets the icon of a menu item.
-	mQuit.SetIcon(icon.Data)
+	mQuit := systray.AddMenuItem("Quit", "Quit the whole app")
 
 	go func() {
 		for {
@@ -59,7 +55,7 @@ func onReady() {
 					}
 
 					for _, notification := range *notifications {
-						beeep.Alert(notification.Reason, notification.Subject.Title, icon.Data)
+						beeep.Notify(notification.Reason, notification.Subject.Title, icon.Data)
 					}
 				}
 				time.Sleep(5 * time.Second)
@@ -71,7 +67,7 @@ func onReady() {
 		for {
 			select {
 			case <-mNotifications.ClickedCh:
-				poller.checkIfNotificationsAsChanged()
+				openBrowser("https://github.com/notifications")
 			case <-mTogglePolling.ClickedCh:
 				shouldPoll = !shouldPoll
 				if mTogglePolling.Checked() {
@@ -79,8 +75,6 @@ func onReady() {
 				} else {
 					mTogglePolling.Check()
 				}
-			case <-mNotify.ClickedCh:
-				beeep.Notify("Awesome App", "Notification sent!", "assets/information.png")
 			case <-mQuit.ClickedCh:
 				systray.Quit()
 			}
