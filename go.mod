@@ -4,6 +4,7 @@ go 1.24.3
 
 require (
 	fyne.io/systray v1.11.0
+	github.com/adrg/xdg v0.5.3
 	github.com/gen2brain/beeep v0.11.1
 )
 

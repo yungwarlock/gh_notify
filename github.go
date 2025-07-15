@@ -5,16 +5,19 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/adrg/xdg"
 )
 
 const GithubUrl string = "https://api.github.com/notifications"
 
 type GithubPoller struct {
-	lastModified *string
-	client       *http.Client
+	client *http.Client
 }
 
 type roundTripperFunc func(*http.Request) (*http.Response, error)
@@ -37,9 +40,33 @@ func NewGithubPoller(accessToken string) *GithubPoller {
 	)
 
 	return &GithubPoller{
-		lastModified: nil,
-		client:       client,
+		client: client,
 	}
+}
+
+func (p *GithubPoller) getLastModifiedPath() string {
+	return filepath.Join(xdg.DataHome, "gh_notify", "last_modified")
+}
+
+func (p *GithubPoller) readLastModified() *string {
+	path := p.getLastModifiedPath()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil
+	}
+	lastMod := string(data)
+	return &lastMod
+}
+
+func (p *GithubPoller) writeLastModified(lastModified string) error {
+	path := p.getLastModifiedPath()
+	dir := filepath.Dir(path)
+
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return err
+	}
+
+	return os.WriteFile(path, []byte(lastModified), 0644)
 }
 
 func (p *GithubPoller) checkIfNotificationsAsChanged() (bool, error) {
@@ -51,8 +78,9 @@ func (p *GithubPoller) checkIfNotificationsAsChanged() (bool, error) {
 		panic(err)
 	}
 
-	if p.lastModified != nil {
-		req.Header.Set("If-Modified-Since", *p.lastModified)
+	lastModified := p.readLastModified()
+	if lastModified != nil {
+		req.Header.Set("If-Modified-Since", *lastModified)
 	}
 
 	resp, err := client.Do(req)
@@ -73,9 +101,10 @@ func (p *GithubPoller) checkIfNotificationsAsChanged() (bool, error) {
 func (p *GithubPoller) getNotifications() {
 	client := p.client
 	var url = GithubUrl
-	if p.lastModified != nil {
+	lastModified := p.readLastModified()
+	if lastModified != nil {
 		// Parse the RFC1123 format and convert to ISO 8601
-		parsedTime, err := time.Parse(time.RFC1123, *p.lastModified)
+		parsedTime, err := time.Parse(time.RFC1123, *lastModified)
 		if err != nil {
 			panic(err)
 		}
@@ -95,7 +124,9 @@ func (p *GithubPoller) getNotifications() {
 
 	// Store the Last-Modified header for future requests
 	if lastMod := resp.Header.Get("Last-Modified"); lastMod != "" {
-		p.lastModified = &lastMod
+		if err := p.writeLastModified(lastMod); err != nil {
+			fmt.Printf("Error writing last modified time: %v\n", err)
+		}
 	}
 
 	body, err := io.ReadAll(resp.Body)
@@ -103,7 +134,7 @@ func (p *GithubPoller) getNotifications() {
 		panic(err)
 	}
 
-	var notifications []map[string]interface{}
+	var notifications []map[string]any
 	if err := json.Unmarshal(body, &notifications); err != nil {
 		panic(err)
 	}
