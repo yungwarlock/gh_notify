@@ -1,15 +1,18 @@
 package main
 
 import (
+	_ "embed"
 	"os"
 	"time"
 
 	"fyne.io/systray"
-	"fyne.io/systray/example/icon"
 	"github.com/gen2brain/beeep"
 )
 
 var poller GithubPoller
+
+//go:embed github-mark/github-mark.png
+var icon []byte
 
 func init() {
 	token, exists := os.LookupEnv("GITHUB_TOKEN")
@@ -33,7 +36,7 @@ func main() {
 func onReady() {
 	shouldPoll := true
 
-	systray.SetIcon(icon.Data)
+	systray.SetIcon(icon)
 	systray.SetTitle("GH Notify")
 	systray.SetTooltip("Get github notifications on desktop")
 	mNotifications := systray.AddMenuItem("Notifications", "View notifications")
@@ -55,7 +58,7 @@ func onReady() {
 					}
 
 					for _, notification := range *notifications {
-						beeep.Notify(notification.Reason, notification.Subject.Title, icon.Data)
+						beeep.Notify(notification.Reason, notification.Subject.Title, icon)
 					}
 				}
 				time.Sleep(5 * time.Second)

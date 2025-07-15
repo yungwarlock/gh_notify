@@ -5,16 +5,20 @@ on:
   release:
     types: [created]
 
+permissions:
+  contents: write
+
+
 jobs:
   build:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        goos: [linux, windows, darwin]
+        goos: [linux, windows]
         goarch: [amd64, arm64]
         exclude:
           - goos: windows
-            goarch: arm64  # Exclude Windows ARM64 builds
+            goarch: arm64
 
     steps:
     - uses: actions/checkout@v4
@@ -30,14 +34,13 @@ jobs:
         GOARCH: ${{ matrix.goarch }}
       run: |
         mkdir -p dist
+        BINARY_NAME="gh_notify-$GOOS-$GOARCH"
         if [ "$GOOS" = "linux" ]; then
-          BINARY_NAME="gh_notify-$GOOS-$GOARCH"
           go build -tags nodbus -o "dist/${BINARY_NAME}"
         elif [ "$GOOS" = "windows" ]; then
           BINARY_NAME="${BINARY_NAME}.exe"
           go build -ldflags -H=windowsgui -o "dist/${BINARY_NAME}"
         elif [ "$GOOS" = "darwin" ]; then
-          BINARY_NAME="gh_notify-$GOOS-$GOARCH"
           CGO_ENABLED=1 go build -o "dist/${BINARY_NAME}"
         fi
         ls -la dist/
