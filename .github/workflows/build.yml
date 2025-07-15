@@ -1,0 +1,41 @@
+name: Build and Release
+
+on:
+  release:
+    types: [created]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        goos: [linux, windows, darwin]
+        goarch: [amd64, arm64]
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.21.3'
+    
+    - name: Build binary
+      env:
+        GOOS: ${{ matrix.goos }}
+        GOARCH: ${{ matrix.goarch }}
+      run: |
+        mkdir -p dist
+        BINARY_NAME="gh_notify-$GOOS-$GOARCH"
+        if [ "$GOOS" = "windows" ]; then
+          BINARY_NAME="${BINARY_NAME}.exe"
+        fi
+        go build -o "dist/${BINARY_NAME}"
+        ls -la dist/
+    
+    - name: Upload Release Asset
+      uses: softprops/action-gh-release@v1
+      with:
+        files: dist/gh_notify-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.goos == 'windows' && '.exe' || '' }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
