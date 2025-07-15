@@ -1,6 +1,7 @@
 name: Build and Release
 
 on:
+  push:
   release:
     types: [created]
 
@@ -11,14 +12,17 @@ jobs:
       matrix:
         goos: [linux, windows, darwin]
         goarch: [amd64, arm64]
-    
+        exclude:
+          - goos: windows
+            goarch: arm64  # Exclude Windows ARM64 builds
+
     steps:
     - uses: actions/checkout@v4
     
     - name: Set up Go
       uses: actions/setup-go@v4
       with:
-        go-version: '1.21.3'
+        go-version: '1.24.3'
     
     - name: Build binary
       env:
@@ -26,14 +30,19 @@ jobs:
         GOARCH: ${{ matrix.goarch }}
       run: |
         mkdir -p dist
-        BINARY_NAME="gh_notify-$GOOS-$GOARCH"
-        if [ "$GOOS" = "windows" ]; then
+        if [ "$GOOS" = "linux" ]; then
+          BINARY_NAME="gh_notify-$GOOS-$GOARCH"
+          go build -tags nodbus -o "dist/${BINARY_NAME}"
+        elif [ "$GOOS" = "windows" ]; then
           BINARY_NAME="${BINARY_NAME}.exe"
+          go build -ldflags -H=windowsgui -o "dist/${BINARY_NAME}"
+        elif [ "$GOOS" = "darwin" ]; then
+          BINARY_NAME="gh_notify-$GOOS-$GOARCH"
+          CGO_ENABLED=1 go build -o "dist/${BINARY_NAME}"
         fi
-        go build -o "dist/${BINARY_NAME}"
         ls -la dist/
-    
     - name: Upload Release Asset
+      if: github.event_name == 'release'
       uses: softprops/action-gh-release@v1
       with:
         files: dist/gh_notify-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.goos == 'windows' && '.exe' || '' }}
