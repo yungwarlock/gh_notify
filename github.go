@@ -98,7 +98,7 @@ func (p *GithubPoller) checkIfNotificationsAsChanged() (bool, error) {
 	return true, nil
 }
 
-func (p *GithubPoller) getNotifications() {
+func (p *GithubPoller) getNotifications() (*[]Notification, error) {
 	client := p.client
 	var url = GithubUrl
 	lastModified := p.readLastModified()
@@ -134,19 +134,13 @@ func (p *GithubPoller) getNotifications() {
 		panic(err)
 	}
 
-	var notifications []map[string]any
+	var notifications *[]Notification
 	if err := json.Unmarshal(body, &notifications); err != nil {
 		panic(err)
 	}
 
-	fmt.Printf("Found %d notifications\n", len(notifications))
-	for i, notification := range notifications {
-		if subject, ok := notification["subject"].(map[string]any); ok {
-			if title, ok := subject["title"].(string); ok {
-				fmt.Printf("Notification %d: %s\n", i, title)
-			}
-		}
-	}
+	fmt.Printf("Found %d notifications\n", len(*notifications))
+	return notifications, nil
 }
 
 func getTokenFromGithubCLI() (string, error) {
